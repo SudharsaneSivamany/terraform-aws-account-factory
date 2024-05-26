@@ -60,7 +60,12 @@ def registerOU(awsControlTowerBaselineARN, ouARN, identityCenterEnabledBaselineA
         },
     ]
     )
-    print(enable_baseline_response)
+    if enable_baseline_response["ResponseMetadata"]["HTTPStatusCode"] == 200:
+        print("##################################")
+        print("\033[1;32;40m$$$  Registered Successfully!  $$$")
+        print("##################################")
+    else:
+        print(enable_baseline_response)
 
 
 if __name__ == '__main__':
