@@ -4,6 +4,8 @@ Account Factory Module create OU's upto 3 levels, aws accounts, register the ou 
 
 ## Requirements
 
+* Control Tower Landingzone should be enabled
+* Administrative access required at control tower management account as a non-root iam user
 * python or python3
 * boto3
 
@@ -11,6 +13,7 @@ Account Factory Module create OU's upto 3 levels, aws accounts, register the ou 
 $ sudo yum install python3 -y 
 $ sudo pip3 install boto3
 ```
+
 Please refer to example folder for sample code.
 
 
