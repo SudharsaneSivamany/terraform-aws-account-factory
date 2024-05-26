@@ -1,4 +1,8 @@
-accounts: []
+accounts:
+- account_name  : "acc5"
+  account_email : "orgadmin5@outlook.com"
+  create_govcloud : true
+  iam_user_access_to_billing : ALLOW
 ous:
 - ou_name : "ou-1"
   ous:
@@ -8,17 +12,17 @@ ous:
       ous     : []
       accounts: 
           - account_name  : "acc2"
-            account_email : "ps-rnt.tf2@outlook.com"
+            account_email : "orgadmin2@outlook.com"
             close_on_deletion : true
 
           - account_name  : "acc4"
-            account_email : "ps-rnt.tf4@outlook.com"
+            account_email : "orgadmin4@outlook.com"
             create_govcloud : true
             iam_user_access_to_billing : ALLOW
 
     accounts : 
     - account_name  : "acc3"
-      account_email : "ps-rnt.tf3@outlook.com"
+      account_email : "orgadmin3@outlook.com"
       tags          : 
         region : "us-east-1"
   accounts : []
@@ -29,4 +33,4 @@ ous:
     accounts : []
   accounts : 
   - account_name  : "acc10"
-    account_email : "ps-rnt.tf10@outlook.com"
+    account_email : "orgadmin10@outlook.com"
