@@ -165,7 +165,7 @@ resource "terraform_data" "account_enroll" {
   provisioner "local-exec" {
     when        = create
     working_dir = path.module
-    command     = "${var.python} enroll_account.py -o ${each.value["parent_name"]} -i ${each.value["account_id"]}"
+    command     = "${var.python} enroll_account.py --ou ${each.value["parent_id"]} -i ${each.value["account_id"]} ${each.value["parent_name"] == "Root" ? "-c" : "-n"}"
   }
 
 }
