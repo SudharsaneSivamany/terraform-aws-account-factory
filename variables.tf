@@ -33,3 +33,9 @@ variable "python" {
   description = "python or python3"
   default     = "python"
 }
+
+variable "parent_id" {
+  type        = string
+  description = "OU id will be considered as root to create ou's and accounts. Default is null, so that the ou's and accounts will be created under Root"
+  default     = null
+}

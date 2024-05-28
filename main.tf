@@ -27,7 +27,7 @@ locals {
   account_level_0 = flatten(setsubtract([for entry in var.ou_map.accounts : { acc_name = entry.account_name
     email                      = entry.account_email
     tags                       = lookup(entry, "tags", {})
-    parent                     = "Root"
+    parent                     = var.parent_id == null ? "Root" : var.parent_id
     close_on_deletion          = lookup(entry, "close_on_deletion", null)
     role_name                  = lookup(entry, "role_name", null)
     iam_user_access_to_billing = lookup(entry, "iam_user_access_to_billing", null)
@@ -35,7 +35,7 @@ locals {
 
   ou_level_1 = flatten(setsubtract([for entry1 in var.ou_map.ous : { ou_name = entry1.ou_name
     tags = lookup(entry1, "tags", {})
-  parent = "Root" }], []))
+  parent = var.parent_id == null ? "Root" : var.parent_id }], []))
 
   account_level_1 = flatten(setsubtract([for entry1 in var.ou_map.ous : [for account in entry1.accounts : { acc_name = account.account_name
     email                      = account.account_email
@@ -78,7 +78,7 @@ locals {
 resource "aws_organizations_organizational_unit" "ou_level_1" {
   for_each  = { for entry in local.ou_level_1 : entry.ou_name => entry }
   name      = each.value["ou_name"]
-  parent_id = data.aws_organizations_organization.this.roots[0].id
+  parent_id = each.value["parent"] == "Root" ? data.aws_organizations_organization.this.roots[0].id : each.value["parent"]
   tags      = each.value["tags"]
 }
 
@@ -103,7 +103,7 @@ resource "aws_organizations_account" "account" {
   for_each                   = { for entry in local.account : "${entry.acc_name}=>${entry.parent}" => entry }
   email                      = each.value["email"]
   name                       = each.value["acc_name"]
-  parent_id                  = strcontains(each.value["parent"], "=2>") ? aws_organizations_organizational_unit.ou_level_3[each.value["parent"]].id : strcontains(each.value["parent"], "=1>") ? aws_organizations_organizational_unit.ou_level_2[each.value["parent"]].id : each.value["parent"] != "Root" ? aws_organizations_organizational_unit.ou_level_1[each.value["parent"]].id : data.aws_organizations_organization.this.roots[0].id
+  parent_id                  = strcontains(each.value["parent"], "=2>") ? aws_organizations_organizational_unit.ou_level_3[each.value["parent"]].id : strcontains(each.value["parent"], "=1>") ? aws_organizations_organizational_unit.ou_level_2[each.value["parent"]].id : each.value["parent"] != "Root" ? try(aws_organizations_organizational_unit.ou_level_1[each.value["parent"]].id, each.value["parent"]) : data.aws_organizations_organization.this.roots[0].id
   close_on_deletion          = each.value["close_on_deletion"]
   role_name                  = each.value["role_name"]
   iam_user_access_to_billing = each.value["iam_user_access_to_billing"]
@@ -118,8 +118,8 @@ resource "aws_organizations_account" "account" {
 locals {
   account_spec = [for entry in local.account : { account_id = aws_organizations_account.account["${entry.acc_name}=>${entry.parent}"].id
     account_name = entry.acc_name
-    parent_name  = strcontains(entry.parent, "=2>") ? aws_organizations_organizational_unit.ou_level_3[entry.parent].name : strcontains(entry.parent, "=1>") ? aws_organizations_organizational_unit.ou_level_2[entry.parent].name : entry.parent != "Root" ? aws_organizations_organizational_unit.ou_level_1[entry.parent].name : data.aws_organizations_organization.this.roots[0].name
-  parent_id = strcontains(entry.parent, "=2>") ? aws_organizations_organizational_unit.ou_level_3[entry.parent].id : strcontains(entry.parent, "=1>") ? aws_organizations_organizational_unit.ou_level_2[entry.parent].id : entry.parent != "Root" ? aws_organizations_organizational_unit.ou_level_1[entry.parent].id : data.aws_organizations_organization.this.roots[0].id }]
+    parent_name  = strcontains(entry.parent, "=2>") ? aws_organizations_organizational_unit.ou_level_3[entry.parent].name : strcontains(entry.parent, "=1>") ? aws_organizations_organizational_unit.ou_level_2[entry.parent].name : entry.parent != "Root" ? try(aws_organizations_organizational_unit.ou_level_1[entry.parent].name, entry.parent) : data.aws_organizations_organization.this.roots[0].name
+  parent_id = strcontains(entry.parent, "=2>") ? aws_organizations_organizational_unit.ou_level_3[entry.parent].id : strcontains(entry.parent, "=1>") ? aws_organizations_organizational_unit.ou_level_2[entry.parent].id : entry.parent != "Root" ? try(aws_organizations_organizational_unit.ou_level_1[entry.parent].id, entry.parent) : data.aws_organizations_organization.this.roots[0].id }]
 
   ou_arn = concat([for entry in local.ou_level_1 : { ou_name = "${entry.parent}=0>${entry.ou_name}", ou_arn = aws_organizations_organizational_unit.ou_level_1[entry.ou_name].arn }],
     [for entry in local.ou_level_2 : { ou_name = "${entry.parent}=1>${entry.ou_name}", ou_arn = aws_organizations_organizational_unit.ou_level_2["${entry.parent}=1>${entry.ou_name}"].arn }],

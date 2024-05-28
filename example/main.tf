@@ -24,9 +24,10 @@ SOFTWARE.
 */
 
 module "ou-account" {
-  source = "../"
-  ou_map = yamldecode(file("${path.module}/ou_acc.yaml"))
-  python = "python"
+  source    = "../"
+  ou_map    = yamldecode(file("${path.module}/ou_acc.yaml"))
+  python    = "python"
+  parent_id = null
 }
 
 output "op" {

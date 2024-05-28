@@ -48,6 +48,7 @@ No modules.
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | <a name="input_ou_map"></a> [ou\_map](#input\_ou\_map) | OU and Account Info | `any` | n/a | yes |
+| <a name="input_parent_id"></a> [parent\_id](#input\_parent\_id) | OU id will be considered as root to create ou's and accounts. Default is null, so that the ou's and accounts will be created under Root | `string` | `null` | no |
 | <a name="input_python"></a> [python](#input\_python) | python or python3 | `string` | `"python"` | no |
 
 ## Outputs
