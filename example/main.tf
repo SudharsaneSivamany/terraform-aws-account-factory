@@ -27,7 +27,7 @@ module "ou-account" {
   source    = "../"
   ou_map    = yamldecode(file("${path.module}/ou_acc.yaml"))
   python    = "python"
-  parent_id = "ou-3vnj-d097pnyf"
+  parent_id = null
 }
 
 output "op" {
