@@ -4,7 +4,7 @@ Account Factory Module create OU's upto 3 levels, aws accounts, register the ou 
 
 ## Requirements
 
-* Control Tower Landingzone should be enabled
+* Control Tower Landingzone should be enabled, Org feature should be enabled and activate trust on stackset
 * Administrative access required at control tower management account as a non-root iam user
 * python or python3
 * boto3
