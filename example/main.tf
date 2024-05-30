@@ -24,7 +24,7 @@ SOFTWARE.
 */
 
 module "ou-account" {
-  source    = "../"
+  source    = "SudharsaneSivamany/account-factory/aws"
   ou_map    = yamldecode(file("${path.module}/ou_acc.yaml"))
   python    = "python"
   parent_id = null
