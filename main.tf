@@ -97,24 +97,6 @@ resource "aws_organizations_organizational_unit" "ou_level_3" {
 }
 
 
-data "aws_organizations_organization" "this" {}
-
-resource "aws_organizations_account" "account" {
-  for_each                   = { for entry in local.account : "${entry.acc_name}=>${entry.parent}" => entry }
-  email                      = each.value["email"]
-  name                       = each.value["acc_name"]
-  parent_id                  = strcontains(each.value["parent"], "=2>") ? aws_organizations_organizational_unit.ou_level_3[each.value["parent"]].id : strcontains(each.value["parent"], "=1>") ? aws_organizations_organizational_unit.ou_level_2[each.value["parent"]].id : each.value["parent"] != "Root" ? try(aws_organizations_organizational_unit.ou_level_1[each.value["parent"]].id, each.value["parent"]) : data.aws_organizations_organization.this.roots[0].id
-  close_on_deletion          = each.value["close_on_deletion"]
-  role_name                  = each.value["role_name"]
-  iam_user_access_to_billing = each.value["iam_user_access_to_billing"]
-  create_govcloud            = each.value["create_govcloud"]
-
-  lifecycle {
-    ignore_changes = [role_name]
-  }
-}
-
-
 locals {
   account_spec = [for entry in local.account : { account_id = aws_organizations_account.account["${entry.acc_name}=>${entry.parent}"].id
     account_name = entry.acc_name
@@ -126,8 +108,10 @@ locals {
   [for entry in local.ou_level_3 : { ou_name = "${entry.parent}=2>${entry.ou_name}", ou_arn = aws_organizations_organizational_unit.ou_level_3["${entry.parent}=2>${entry.ou_name}"].arn }])
 }
 
+
+
 resource "time_sleep" "wait_60_seconds_ou_register" {
-  depends_on = [aws_organizations_account.account, aws_organizations_organizational_unit.ou_level_1, aws_organizations_organizational_unit.ou_level_2, aws_organizations_organizational_unit.ou_level_3]
+  depends_on = [aws_organizations_organizational_unit.ou_level_1, aws_organizations_organizational_unit.ou_level_2, aws_organizations_organizational_unit.ou_level_3]
 
   create_duration = "60s"
 }
@@ -135,21 +119,39 @@ resource "time_sleep" "wait_60_seconds_ou_register" {
 resource "terraform_data" "ou_register" {
   depends_on = [time_sleep.wait_60_seconds_ou_register]
 
-  for_each = { for i in local.ou_arn : i.ou_name => i }
+  count = length(local.ou_arn) > 0 ? 1 : 0
 
-  triggers_replace = [each.key, each.value["ou_arn"]]
+  triggers_replace = [local.ou_arn]
 
   provisioner "local-exec" {
     when        = create
     working_dir = path.module
-    command     = "${var.python} register_ou.py ${each.value["ou_arn"]}"
+    command     = "${var.python} register_ou.py ${join(",", [for entry in local.ou_arn : entry.ou_arn])}"
+  }
+}
+
+data "aws_organizations_organization" "this" {}
+
+resource "aws_organizations_account" "account" {
+  for_each                   = { for entry in local.account : "${entry.acc_name}=>${entry.parent}" => entry }
+  email                      = each.value["email"]
+  name                       = each.value["acc_name"]
+  parent_id                  = strcontains(each.value["parent"], "=2>") ? aws_organizations_organizational_unit.ou_level_3[each.value["parent"]].id : strcontains(each.value["parent"], "=1>") ? aws_organizations_organizational_unit.ou_level_2[each.value["parent"]].id : each.value["parent"] != "Root" ? try(aws_organizations_organizational_unit.ou_level_1[each.value["parent"]].id, each.value["parent"]) : data.aws_organizations_organization.this.roots[0].id
+  close_on_deletion          = each.value["close_on_deletion"]
+  role_name                  = each.value["role_name"]
+  iam_user_access_to_billing = each.value["iam_user_access_to_billing"]
+  create_govcloud            = each.value["create_govcloud"]
+  depends_on                 = [terraform_data.ou_register]
+
+  lifecycle {
+    ignore_changes = [role_name]
   }
 }
 
 
 
 resource "time_sleep" "wait_60_seconds_account_enroll" {
-  depends_on = [terraform_data.ou_register]
+  depends_on = [aws_organizations_account.account]
 
   create_duration = "60s"
 }
@@ -158,14 +160,14 @@ resource "time_sleep" "wait_60_seconds_account_enroll" {
 resource "terraform_data" "account_enroll" {
   depends_on = [time_sleep.wait_60_seconds_account_enroll]
 
-  for_each = { for i in local.account_spec : i.account_name => i }
+  count = length(local.account_spec) > 0 ? 1 : 0
 
-  triggers_replace = [each.key, each.value["parent_name"]]
+  triggers_replace = [local.account_spec]
 
   provisioner "local-exec" {
     when        = create
     working_dir = path.module
-    command     = "${var.python} enroll_account.py --ou ${each.value["parent_id"]} -i ${each.value["account_id"]} ${each.value["parent_name"] == "Root" ? "-c" : "-n"}"
+    command     = "${var.python} enroll_account.py -o ${join(",", compact(distinct([for i in local.account_spec : i["parent_name"] != "Root" ? i["parent_id"] : ""])))} -u ${join(",", compact(distinct([for i in local.account_spec : i["parent_name"] != "Root" ? i["parent_id"] : ""])))} -n"
   }
 
 }

@@ -1,8 +1,5 @@
 accounts: []
-# - account_name  : "acc12"
-#   account_email : "archive12@outlook.com"
-#   close_on_deletion : true
-ous: []
+ous:
 # - ou_name : "ou-1"
 #   ous:
 #   - ou_name : "ou-2"
@@ -25,11 +22,11 @@ ous: []
 #       tags          : 
 #         region : "us-east-1"
 #   accounts : []
-# - ou_name : "ou-10"
-#   ous     : []
-  # - ou_name : "ou-11"
-  #   ous     : []
-  #   accounts : []
-  # accounts : []
+- ou_name : "ou-10"
+  ous     : 
+  - ou_name : "ou-11"
+    ous     : []
+    accounts : []
+  accounts : []
   # - account_name  : "acc10"
   #   account_email : "orgadmin10@outlook.com"

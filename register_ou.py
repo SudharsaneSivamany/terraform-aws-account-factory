@@ -23,6 +23,7 @@
 import boto3
 import json
 import argparse
+import time
 
 client = boto3.client('controltower')
 
@@ -42,8 +43,14 @@ def check(key, value, types):
         if enabledBaseline[key] == value:
             if types == "registration_check":
                 if enabledBaseline["statusSummary"]["status"] == "SUCCEEDED":
-                    print("ERROR: OU already registered")
-                    exit()
+                    return True
+                else:
+                    return False
+            elif types == "registration_update_check":
+                if enabledBaseline["statusSummary"]["status"] == "UNDER_CHANGE":
+                    return True
+                else: 
+                    return False
             else:
                 identityCenterEnabledBaselineArn = enabledBaseline["arn"]
                 return identityCenterEnabledBaselineArn
@@ -60,10 +67,14 @@ def registerOU(awsControlTowerBaselineARN, ouARN, identityCenterEnabledBaselineA
         },
     ]
     )
+    time.sleep(10) 
     if enable_baseline_response["ResponseMetadata"]["HTTPStatusCode"] == 200:
-        print("##################################")
-        print("\033[1;32;40m$$$  Registered Successfully!  $$$")
-        print("##################################")
+        while(check("targetIdentifier", ouARN, "registration_update_check")):
+            time.sleep(15)
+        if check("targetIdentifier", ouARN, "registration_check"): 
+            print("\033[1;32;40m$$$ %s Registered Successfully!  $$$" % ouARN)
+        else:
+            print("\033[1;31;40m$$$ %s Registration Failed  $$$" % ouARN)
     else:
         print(enable_baseline_response)
 
@@ -74,8 +85,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     ouARN = args.ou_arn
 
-    # Precheck to validate the ou is already registered or not
-    check("targetIdentifier", ouARN, "registration_check")
+    list_ouARN = ouARN.split(',')
+    
 
     for baseline in baselines_response["baselines"]:
         if baseline["name"] == "IdentityCenterBaseline":
@@ -87,8 +98,11 @@ if __name__ == '__main__':
         # Get IdentityCenterEnabledBaselineArn
         identityCenterEnabledBaselineArn = check("baselineIdentifier", identityCenterBaselineARN, "getidentityCenterBaselineARN")
         if identityCenterEnabledBaselineArn != "":
-            # Register the Organization Unit
-            registerOU(awsControlTowerBaselineARN, ouARN, identityCenterEnabledBaselineArn)
+            for ouARN in list_ouARN:
+                if not check("targetIdentifier", ouARN, "registration_check"):
+                    # Register the Organization Unit
+                    registerOU(awsControlTowerBaselineARN, ouARN, identityCenterEnabledBaselineArn)
+                    
         else:
             print("ERROR: NOT FOUND IdentityCenterEnabledBaselineArn")
             exit()

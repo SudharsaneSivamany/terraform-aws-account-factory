@@ -1,6 +1,6 @@
 # Terraform aws account factory
 
-Account Factory Module create OU's upto 3 levels, aws accounts, register the ou with control tower and enroll the accounts. Create OU's and accounts one at a time
+Account Factory Module create OU's upto 3 levels, aws accounts, register the ou with control tower and enroll the accounts.
 
 ## Requirements
 
