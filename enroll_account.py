@@ -988,60 +988,63 @@ if __name__ == '__main__':
                         help="Flag to enroll account in Nested OU, need OU id. Also valid for enrolling account in any OU under root")
 
     ARGS = PARSER.parse_args()
-    MANAGED_OU = ARGS.ou
+    COMBINED_MANAGED_OU = ARGS.ou
+    LIST_MANAGED_OU = COMBINED_MANAGED_OU.split(',')
     ROOT_LEVEL = ARGS.create_role
 
-    if not does_ou_exists(MANAGED_OU):
-        error_and_exit('Destination OU do not exist')
-    if ARGS.nested_ou:
-        ou_id_matched = bool(match('^ou-[0-9a-z]{4,32}-[a-z0-9]{8,32}$', MANAGED_OU))
-        if not ou_id_matched:
-            error_and_exit('Invalid OU id detected. Make sure to provide OU id instead of OU Name')
+    for MANAGED_OU in LIST_MANAGED_OU:
+        UNMANAGED_OU = MANAGED_OU
+        if not does_ou_exists(MANAGED_OU):
+            error_and_exit('Destination OU do not exist')
+        if ARGS.nested_ou:
+            ou_id_matched = bool(match('^ou-[0-9a-z]{4,32}-[a-z0-9]{8,32}$', MANAGED_OU))
+            if not ou_id_matched:
+                error_and_exit('Invalid OU id detected. Make sure to provide OU id instead of OU Name')
+            else:
+                output = ORG.describe_organizational_unit(OrganizationalUnitId=MANAGED_OU)
+                OU_NAME=output['OrganizationalUnit']['Name']
+                MANAGED_OU=OU_NAME+" ("+MANAGED_OU+")"
+
+        if UNMANAGED_OU:
+            print(UNMANAGED_OU)
+            if does_ou_exists(UNMANAGED_OU):
+                DATA = get_accounts_in_ou(UNMANAGED_OU, MANAGED_OU)
+            else:
+                error_and_exit('Source OU do not exist')
+        elif ARGS.email:
+            DATA = get_account_info(MANAGED_OU, account_email=ARGS.email)
+        elif ARGS.aid:
+            DATA = get_account_info(MANAGED_OU, account_id=ARGS.aid)
         else:
-            output = ORG.describe_organizational_unit(OrganizationalUnitId=MANAGED_OU)
-            OU_NAME=output['OrganizationalUnit']['Name']
-            MANAGED_OU=OU_NAME+" ("+MANAGED_OU+")"
+            error_and_exit('Need to pass atleast one option from [-u|-e|-i]')
 
-    if ARGS.unou:
-        UNMANAGED_OU = ARGS.unou
-        if does_ou_exists(UNMANAGED_OU):
-            DATA = get_accounts_in_ou(UNMANAGED_OU, MANAGED_OU)
-        else:
-            error_and_exit('Source OU do not exist')
-    elif ARGS.email:
-        DATA = get_account_info(MANAGED_OU, account_email=ARGS.email)
-    elif ARGS.aid:
-        DATA = get_account_info(MANAGED_OU, account_id=ARGS.aid)
-    else:
-        error_and_exit('Need to pass atleast one option from [-u|-e|-i]')
+        MASTER_ACCOUNT_ID = STS.get_caller_identity()['Account']
 
-    MASTER_ACCOUNT_ID = STS.get_caller_identity()['Account']
+        EMAIL_ID = STS.get_caller_identity()['Arn'].split(':')[-1]
 
-    EMAIL_ID = STS.get_caller_identity()['Arn'].split(':')[-1]
+        LOGGER.info('\nExecuting on AWS Account: %s, %s',
+                    INFO_STYLE + MASTER_ACCOUNT_ID + RESET_STYLE,
+                    INFO_STYLE + EMAIL_ID + RESET_STYLE)
 
-    LOGGER.info('\nExecuting on AWS Account: %s, %s',
-                INFO_STYLE + MASTER_ACCOUNT_ID + RESET_STYLE,
-                INFO_STYLE + EMAIL_ID + RESET_STYLE)
-
-    if ARGS.verify_only:
-        VERIFY_RESULT = run_prechecks(DATA)
-        process_verify_result(VERIFY_RESULT)
-    else:
-        check_for_role_exception()
-        VERIFY_RESULT = run_prechecks(DATA)
-        COUNT = 0
-        for account_info in VERIFY_RESULT:
-            for acct_value in account_info.values():
-                if acct_value['ErrCount'] >= 1:
-                    COUNT += acct_value['ErrCount']
-
-        if COUNT == 0:
-            LOGGER.info(INFO_STYLE + '%s PRECHECK SUCCEEDED. Proceeding: %s' +
-                        RESET_STYLE)
-            start_enrolling_accounts(DATA)
-        else:
-            LOGGER.info('%'*62)
-            LOGGER.error(ERR_STYLE + '!!! PRECHECK FAILED !!!' + RESET_STYLE +
-                         ': Fix below errors and rerun the script')
-            LOGGER.info('%'*62)
+        if ARGS.verify_only:
+            VERIFY_RESULT = run_prechecks(DATA)
             process_verify_result(VERIFY_RESULT)
+        else:
+            check_for_role_exception()
+            VERIFY_RESULT = run_prechecks(DATA)
+            COUNT = 0
+            for account_info in VERIFY_RESULT:
+                for acct_value in account_info.values():
+                    if acct_value['ErrCount'] >= 1:
+                        COUNT += acct_value['ErrCount']
+
+            if COUNT == 0:
+                LOGGER.info(INFO_STYLE + '%s PRECHECK SUCCEEDED. Proceeding: %s' +
+                            RESET_STYLE)
+                start_enrolling_accounts(DATA)
+            else:
+                LOGGER.info('%'*62)
+                LOGGER.error(ERR_STYLE + '!!! PRECHECK FAILED !!!' + RESET_STYLE +
+                            ': Fix below errors and rerun the script')
+                LOGGER.info('%'*62)
+                process_verify_result(VERIFY_RESULT)
